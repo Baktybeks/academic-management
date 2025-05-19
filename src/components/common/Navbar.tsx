@@ -1,17 +1,21 @@
-// components/common/Navbar.tsx
+"use client"; // Добавляем это, так как используем хуки React
+
 import React from "react";
 import Link from "next/link";
-import { useRouter } from "next/router";
-import { UserRole } from "../../types";
-import { useAuth } from "@/context/AuthProvider";
+import { usePathname } from "next/navigation"; // Обновляем импорт
+import { UserRole } from "@/types";
+import { useAuth } from "@/hooks/useAuth"; // Обновляем путь импорта
+import { useRouter } from "next/navigation";
 
-const Navbar: React.FC = () => {
+export function Navbar() {
   const { user, logout, loading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname(); // Вместо router.pathname
 
   const handleLogout = async () => {
     await logout();
     router.push("/login");
+    // Перенаправление будет обрабатываться middleware
   };
 
   // Если пользователь не авторизован или происходит загрузка, ничего не показываем
@@ -21,28 +25,61 @@ const Navbar: React.FC = () => {
 
   const isAdmin = user.role === UserRole.ADMIN;
   const isTeacher = user.role === UserRole.TEACHER;
+  const isCurator = user.role === UserRole.CURATOR;
+  const isStudent = user.role === UserRole.STUDENT;
 
   // Определяем ссылки для навигации в зависимости от роли пользователя
   const getNavLinks = () => {
     if (isAdmin) {
       return [
         { href: "/admin", label: "Панель управления" },
-        { href: "/admin/categories", label: "Категории" },
-        { href: "/admin/tests", label: "Тесты" },
-        { href: "/admin/users", label: "Пользователи" },
-        { href: "/admin/statistics", label: "Статистика" },
-      ];
-    } else if (isTeacher) {
-      return [
-        { href: "/teacher", label: "Главная" },
-        { href: "/teacher/tests", label: "Доступные тесты" },
-        { href: "/teacher/results", label: "Мои результаты" },
+        { href: "/admin/curators", label: "Кураторы" }, // Добавлена новая ссылка
       ];
     }
+
+    if (isTeacher) {
+      return [
+        { href: "/teacher", label: "Мои группы" },
+        { href: "/teacher/profile", label: "Профиль" },
+      ];
+    }
+
+    if (isCurator) {
+      return [
+        { href: "/curator", label: "Главная" },
+        { href: "/curator/groups", label: "Группы" },
+        { href: "/curator/users", label: "Пользователи" }, // Теперь один пункт вместо двух
+        { href: "/curator/lessons", label: "Уроки" },
+        { href: "/curator/surveys", label: "Опросники" },
+      ];
+    }
+
+    if (isStudent) {
+      return [
+        { href: "/student", label: "Главная" },
+        { href: "/student/attendance", label: "Посещаемость" },
+        { href: "/student/grades", label: "Оценки" },
+        { href: "/student/surveys", label: "Опросники" },
+      ];
+    }
+
     return [];
   };
 
   const navLinks = getNavLinks();
+
+  // Функция для определения активного пути
+  const isActive = (href: string) => {
+    if (
+      href === "/admin" ||
+      href === "/teacher" ||
+      href === "/curator" ||
+      href === "/student"
+    ) {
+      return pathname === href;
+    }
+    return pathname.startsWith(href);
+  };
 
   return (
     <nav className="bg-indigo-600">
@@ -51,7 +88,15 @@ const Navbar: React.FC = () => {
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <Link
-                href={isAdmin ? "/admin" : "/teacher"}
+                href={
+                  isAdmin
+                    ? "/admin"
+                    : isTeacher
+                    ? "/teacher"
+                    : isCurator
+                    ? "/curator"
+                    : "/student"
+                }
                 className="text-white font-bold text-xl"
               >
                 Система оценки компетенций
@@ -64,7 +109,7 @@ const Navbar: React.FC = () => {
                     key={link.href}
                     href={link.href}
                     className={`px-3 py-2 rounded-md text-sm font-medium ${
-                      router.pathname === link.href
+                      isActive(link.href)
                         ? "bg-indigo-700 text-white"
                         : "text-white hover:bg-indigo-500"
                     }`}
@@ -78,7 +123,15 @@ const Navbar: React.FC = () => {
           <div className="hidden md:block">
             <div className="ml-4 flex items-center md:ml-6">
               <span className="text-gray-300 mr-4">
-                {user.name} ({isAdmin ? "Администратор" : "Преподаватель"})
+                {user.name} (
+                {isAdmin
+                  ? "Администратор"
+                  : isTeacher
+                  ? "Преподаватель"
+                  : isCurator
+                  ? "Куратор"
+                  : "Студент"}
+                )
               </span>
               <button
                 onClick={handleLogout}
@@ -112,7 +165,7 @@ const Navbar: React.FC = () => {
               key={link.href}
               href={link.href}
               className={`block px-3 py-2 rounded-md text-base font-medium ${
-                router.pathname === link.href
+                isActive(link.href)
                   ? "bg-indigo-700 text-white"
                   : "text-white hover:bg-indigo-500"
               }`}
@@ -124,6 +177,6 @@ const Navbar: React.FC = () => {
       </div>
     </nav>
   );
-};
+}
 
 export default Navbar;

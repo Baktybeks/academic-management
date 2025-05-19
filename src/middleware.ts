@@ -1,3 +1,4 @@
+// middleware.ts - расположение остается тем же, на уровне src/
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { UserRole } from "@/types";
@@ -10,34 +11,22 @@ export function middleware(request: NextRequest) {
     try {
       const parsed = JSON.parse(authSession.value);
       user = parsed.state?.user;
-    } catch {
-      // Cookie parsing failed, handle as not authenticated
-    }
+    } catch {}
   }
 
   const isAuthenticated = !!user;
   const isActive = user?.isActive === true;
   const path = request.nextUrl.pathname;
-  console.log(isAuthenticated, "isAuthenticated");
-  console.log(isActive, "isActive");
-  console.log(path, "path");
 
   if (path.startsWith("/login") || path.startsWith("/register")) {
     if (isAuthenticated && isActive) {
-      // Перенаправляем на соответствующую страницу в зависимости от роли
       return redirectByRole(user.role);
     }
     return NextResponse.next();
   }
 
-  // Protected routes - проверяем аутентификацию И активацию
   if (!isAuthenticated || !isActive) {
     return NextResponse.redirect(new URL("/login", request.url));
-  }
-
-  // Role-based access
-  if (path.startsWith("/admin") && user.role !== UserRole.ADMIN) {
-    return redirectByRole(user.role);
   }
 
   // Role-based access
@@ -57,7 +46,6 @@ export function middleware(request: NextRequest) {
     return redirectByRole(user.role);
   }
 
-  // Home page redirect based on role
   if (path === "/") {
     return redirectByRole(user.role);
   }
@@ -90,5 +78,14 @@ function redirectByRole(role: UserRole) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    "/((?!api|_next/static|_next/image|public|favicon.ico).*)",
+    "/admin/:path*",
+    "/curator/:path*",
+    "/teacher/:path*",
+    "/student/:path*",
+    "/login",
+    "/register",
+    "/",
+  ],
 };

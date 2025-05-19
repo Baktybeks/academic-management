@@ -1,7 +1,16 @@
+// services/lessonService.ts
 import { ID, Query } from "appwrite";
 import { databases } from "./appwriteClient";
 import { appwriteConfig } from "@/constants/appwriteConfig";
-import { Lesson, Attendance } from "@/types";
+import { Lesson } from "@/types";
+
+export interface LessonCreateDto {
+  title: string;
+  description?: string;
+  date: string;
+  groupId: string;
+  teacherId: string;
+}
 
 export const lessonApi = {
   getAllLessons: async (): Promise<Lesson[]> => {
@@ -59,30 +68,17 @@ export const lessonApi = {
     }
   },
 
-  createLesson: async (
-    title: string,
-    description: string,
-    date: string,
-    groupId: string,
-    teacherId: string
-  ): Promise<Lesson> => {
+  createLesson: async (lessonData: LessonCreateDto): Promise<Lesson> => {
     try {
-      const data = {
-        title,
-        description,
-        date,
-        groupId,
-        teacherId,
-        createdAt: new Date().toISOString(),
-      };
-
       const response = await databases.createDocument(
         appwriteConfig.databaseId,
         appwriteConfig.collections.lessons,
         ID.unique(),
-        data
+        {
+          ...lessonData,
+          createdAt: new Date().toISOString(),
+        }
       );
-
       return response as unknown as Lesson;
     } catch (error) {
       console.error("Error creating lesson:", error);
@@ -90,13 +86,16 @@ export const lessonApi = {
     }
   },
 
-  updateLesson: async (id: string, data: Partial<Lesson>): Promise<Lesson> => {
+  updateLesson: async (
+    id: string,
+    lessonData: Partial<LessonCreateDto>
+  ): Promise<Lesson> => {
     try {
       const response = await databases.updateDocument(
         appwriteConfig.databaseId,
         appwriteConfig.collections.lessons,
         id,
-        data
+        lessonData
       );
       return response as unknown as Lesson;
     } catch (error) {
@@ -112,123 +111,9 @@ export const lessonApi = {
         appwriteConfig.collections.lessons,
         id
       );
-
-      // Удаляем также все записи посещаемости для этого урока
-      try {
-        const attendances = await lessonApi.getAttendanceByLesson(id);
-        for (const attendance of attendances) {
-          await databases.deleteDocument(
-            appwriteConfig.databaseId,
-            appwriteConfig.collections.attendance,
-            attendance.$id
-          );
-        }
-      } catch (error) {
-        console.error("Error deleting related attendance records:", error);
-      }
-
       return true;
     } catch (error) {
       console.error("Error deleting lesson:", error);
-      throw error;
-    }
-  },
-
-  // Методы для работы с посещаемостью
-  getAttendanceByLesson: async (lessonId: string): Promise<Attendance[]> => {
-    try {
-      const response = await databases.listDocuments(
-        appwriteConfig.databaseId,
-        appwriteConfig.collections.attendance,
-        [Query.equal("lessonId", lessonId)]
-      );
-      return response.documents as unknown as Attendance[];
-    } catch (error) {
-      console.error("Error fetching attendance by lesson:", error);
-      return [];
-    }
-  },
-
-  getAttendanceByStudent: async (studentId: string): Promise<Attendance[]> => {
-    try {
-      const response = await databases.listDocuments(
-        appwriteConfig.databaseId,
-        appwriteConfig.collections.attendance,
-        [Query.equal("studentId", studentId)]
-      );
-      return response.documents as unknown as Attendance[];
-    } catch (error) {
-      console.error("Error fetching attendance by student:", error);
-      return [];
-    }
-  },
-
-  getStudentAttendanceForLesson: async (
-    lessonId: string,
-    studentId: string
-  ): Promise<Attendance | null> => {
-    try {
-      const response = await databases.listDocuments(
-        appwriteConfig.databaseId,
-        appwriteConfig.collections.attendance,
-        [Query.equal("lessonId", lessonId), Query.equal("studentId", studentId)]
-      );
-
-      if (response.documents.length > 0) {
-        return response.documents[0] as unknown as Attendance;
-      }
-
-      return null;
-    } catch (error) {
-      console.error("Error fetching student attendance for lesson:", error);
-      return null;
-    }
-  },
-
-  createOrUpdateAttendance: async (
-    lessonId: string,
-    studentId: string,
-    present: boolean,
-    score: number
-  ): Promise<Attendance> => {
-    try {
-      // Проверяем, существует ли уже запись
-      const existingAttendance = await lessonApi.getStudentAttendanceForLesson(
-        lessonId,
-        studentId
-      );
-
-      if (existingAttendance) {
-        // Обновляем существующую запись
-        const response = await databases.updateDocument(
-          appwriteConfig.databaseId,
-          appwriteConfig.collections.attendance,
-          existingAttendance.$id,
-          { present, score }
-        );
-
-        return response as unknown as Attendance;
-      } else {
-        // Создаем новую запись
-        const data = {
-          lessonId,
-          studentId,
-          present,
-          score,
-          createdAt: new Date().toISOString(),
-        };
-
-        const response = await databases.createDocument(
-          appwriteConfig.databaseId,
-          appwriteConfig.collections.attendance,
-          ID.unique(),
-          data
-        );
-
-        return response as unknown as Attendance;
-      }
-    } catch (error) {
-      console.error("Error creating/updating attendance:", error);
       throw error;
     }
   },

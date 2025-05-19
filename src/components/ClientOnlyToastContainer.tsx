@@ -1,13 +1,8 @@
-import { useEffect, useState } from "react";
+// components/ClientOnlyToastContainer.tsx
+"use client";
+
 import { ToastContainer } from "react-toastify";
 
-export const ClientOnlyToastContainer = () => {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) return null;
-  return <ToastContainer />;
-};
+export function ClientOnlyToastContainer() {
+  return <ToastContainer position="top-right" autoClose={3000} />;
+}

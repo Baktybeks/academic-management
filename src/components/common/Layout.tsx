@@ -1,28 +1,30 @@
-import React, { ReactNode } from "react";
-import Head from "next/head";
+// components/common/Layout.tsx
+"use client";
 
-type LayoutProps = {
-  children: ReactNode;
+import React from "react";
+import { Metadata } from "next";
+
+interface LayoutProps {
+  children: React.ReactNode;
   title?: string;
-};
+  description?: string;
+}
 
 const Layout: React.FC<LayoutProps> = ({
   children,
-  title = "Система академической деятельности",
+  title = "Система оценки компетенций",
+  description = "Платформа для оценки компетенций преподавателей и студентов",
 }) => {
+  React.useEffect(() => {
+    if (title) {
+      document.title = title;
+    }
+  }, [title]);
+
   return (
-    <>
-      <Head>
-        <title>{title}</title>
-        <meta
-          name="description"
-          content="Система управления академической деятельностью"
-        />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
-      <main>{children}</main>
-    </>
+    <div className="min-h-screen flex flex-col">
+      <main className="flex-grow">{children}</main>
+    </div>
   );
 };
 

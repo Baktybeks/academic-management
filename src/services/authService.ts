@@ -13,15 +13,10 @@ const {
   collections,
 } = appwriteConfig;
 
-console.log(PROJECT_ID, "PROJECT_ID");
-console.log(DATABASE_ID, "DATABASE_ID");
-console.log(ENDPOINT, "ENDPOINT");
-
 export type GetUserResult = User | { notActivated: true } | null;
 
 // Инициализация клиента Appwrite
 const client = new Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID);
-
 const account = new Account(client);
 const database = new Databases(client);
 
@@ -37,12 +32,10 @@ export const authApi = {
       try {
         session = await account.get();
       } catch (err: any) {
-        // Если пользователь не авторизован, просто вернем null
         if (err.code === 401) {
           console.log("Пользователь не авторизован (гость)");
           return null;
         }
-        // Если ошибка другая, пробросим ее дальше
         throw err;
       }
 
@@ -51,11 +44,12 @@ export const authApi = {
         return null;
       }
 
-      // Получаем данные пользователя из базы данных
+      // Получаем данные пользователя из базы данных по email
+      // Используем email вместо userId, так как в новой схеме нет поля userId
       const users = await database.listDocuments(
         DATABASE_ID,
         collections.users,
-        [Query.equal("userId", session.$id)]
+        [Query.equal("email", session.email)]
       );
 
       if (users.documents.length === 0) {
@@ -65,10 +59,9 @@ export const authApi = {
 
       const userData = users.documents[0];
 
-      // Проверяем, активирован ли пользователь
-      if (!userData.isActive && userData.role === UserRole.TEACHER) {
+      // Проверяем, активирован ли пользователь (все роли кроме ADMIN должны быть активированы)
+      if (!userData.isActive && userData.role !== UserRole.ADMIN) {
         console.log("Пользователь не активирован");
-        // Не удаляем сессию здесь, чтобы предоставить информацию в login
         return { notActivated: true };
       }
 
@@ -90,34 +83,33 @@ export const authApi = {
     try {
       console.log(`Регистрация пользователя: ${email}...`);
 
+      // Проверяем, есть ли администраторы в системе
       const adminCheck = await database.listDocuments(
         DATABASE_ID,
         collections.users,
         [Query.equal("role", UserRole.ADMIN)]
       );
 
-      const userRole =
-        adminCheck.total === 0 ? UserRole.ADMIN : UserRole.TEACHER;
-
+      // Если нет админов - первый пользователь будет админом
       const finalRole =
         adminCheck.total === 0 ? UserRole.ADMIN : role || UserRole.TEACHER;
 
-      const response = await account.create(ID.unique(), email, password, name);
+      // Создаем пользователя в Appwrite Auth
+      const authUser = await account.create(ID.unique(), email, password, name);
 
-      // Создаем документ пользователя в базе данных
+      // Создаем документ пользователя в базе данных - обновленная структура без userId
       const userData = {
-        userId: response.$id,
-        email,
         name,
+        email,
         role: finalRole,
-        isActive: finalRole === UserRole.ADMIN ? true : false,
+        isActive: finalRole === UserRole.ADMIN ? true : false, // Админы автоматически активированы
         createdAt: new Date().toISOString(),
       };
 
       const user = await database.createDocument(
         DATABASE_ID,
         collections.users,
-        ID.unique(),
+        authUser.$id, // Используем ID из Auth как ID документа
         userData
       );
 
@@ -133,20 +125,21 @@ export const authApi = {
       throw error;
     }
   },
+
   // Вход в систему
   login: async (email: string, password: string): Promise<User> => {
     try {
       console.log(`Вход пользователя: ${email}...`);
 
-      // Сначала проверим, нет ли уже существующей сессии
+      // Проверяем существующую сессию
       let existingUser = null;
       try {
         existingUser = await authApi.getCurrentUser();
       } catch (e) {
-        // Ничего не делаем, просто продолжаем
+        // Продолжаем, если ошибка
       }
 
-      // Если сессия уже существует, удаляем ее
+      // Если сессия существует, удаляем её
       if (existingUser) {
         await account.deleteSession("current");
       }
@@ -157,7 +150,7 @@ export const authApi = {
       // Проверяем данные пользователя
       const userResult = await authApi.getCurrentUser();
 
-      // Проверяем статус активации
+      // Обработка неактивированного пользователя
       if (
         userResult &&
         typeof userResult === "object" &&
@@ -165,9 +158,9 @@ export const authApi = {
       ) {
         // Удаляем сессию для неактивированного пользователя
         await account.deleteSession("current");
-        // Выводим требуемое сообщение
-        toast.success("Ожидайте активации вашего аккаунта администратором.");
-        // throw new Error("Ожидайте активации вашего аккаунта администратором.");
+        toast.success(
+          "Ожидайте активации вашего аккаунта администратором или куратором."
+        );
       }
 
       if (!userResult) {
@@ -175,7 +168,6 @@ export const authApi = {
       }
       return userResult as User;
     } catch (error: any) {
-      // Если это ошибка о создании дублирующей сессии, заменяем ее на сообщение об активации
       if (
         error.message &&
         error.message.includes(
@@ -184,18 +176,15 @@ export const authApi = {
       ) {
         console.error("Обнаружена активная сессия");
 
-        // Проверяем, не является ли текущий пользователь неактивированным
         const currentUser = await authApi.getCurrentUser();
         if (
           currentUser &&
           typeof currentUser === "object" &&
           "notActivated" in currentUser
         ) {
-          // Если неактивирован, меняем сообщение об ошибке
-          // throw new Error(
-          //   "Ожидайте активации вашего аккаунта администратором."
-          // );
-          toast.success("Ожидайте активации вашего аккаунта администратором.");
+          toast.success(
+            "Ожидайте активации вашего аккаунта администратором или куратором."
+          );
         }
       }
       console.error("Ошибка при входе в систему:", error);
@@ -207,9 +196,7 @@ export const authApi = {
   logout: async (): Promise<boolean> => {
     try {
       console.log("Выход из системы...");
-
       await account.deleteSession("current");
-
       console.log("Сессия успешно удалена");
       return true;
     } catch (error) {
@@ -222,14 +209,12 @@ export const authApi = {
   activateUser: async (userId: string): Promise<User> => {
     try {
       console.log(`Активация пользователя с ID: ${userId}...`);
-
       const user = await database.updateDocument(
         DATABASE_ID,
         collections.users,
         userId,
         { isActive: true }
       );
-
       console.log("Пользователь успешно активирован");
       return user as unknown as User;
     } catch (error) {
@@ -237,9 +222,27 @@ export const authApi = {
       throw error;
     }
   },
+
+  // Деактивация пользователя
+  deactivateUser: async (userId: string): Promise<User> => {
+    try {
+      console.log(`Деактивация пользователя с ID: ${userId}...`);
+      const user = await database.updateDocument(
+        DATABASE_ID,
+        collections.users,
+        userId,
+        { isActive: false }
+      );
+      console.log("Пользователь успешно деактивирован");
+      return user as unknown as User;
+    } catch (error) {
+      console.error("Ошибка при деактивации пользователя:", error);
+      throw error;
+    }
+  },
 };
 
-// Ключи для React Query
+// Ключи для React Query - без изменений
 export const authKeys = {
   all: ["auth"] as const,
   user: () => [...authKeys.all, "user"] as const,
@@ -247,7 +250,7 @@ export const authKeys = {
   pendingUsers: () => [...authKeys.all, "pending"] as const,
 };
 
-// React Query хуки
+// React Query хуки - без изменений
 export const useCurrentUser = () => {
   return useQuery<GetUserResult>({
     queryKey: authKeys.user(),
@@ -312,21 +315,33 @@ export const useActivateUser = () => {
   });
 };
 
+export const useDeactivateUser = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (userId: string) => authApi.deactivateUser(userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: authKeys.users() });
+    },
+  });
+};
+
 // Хук для получения списка неактивированных пользователей
 export const usePendingUsers = () => {
   return useQuery({
     queryKey: authKeys.pendingUsers(),
     queryFn: async () => {
       try {
+        // Теперь получаем всех неактивных пользователей, а не только учителей
         const result = await database.listDocuments(
           DATABASE_ID,
           collections.users,
-          [
-            Query.equal("isActive", false),
-            Query.equal("role", UserRole.TEACHER),
-          ]
+          [Query.equal("isActive", false)]
         );
-
+        console.log(
+          "Результат запроса неактивированных пользователей:",
+          result
+        );
         return result.documents as unknown as User[];
       } catch (error) {
         console.error(
@@ -350,10 +365,52 @@ export const useTeachers = () => {
           collections.users,
           [Query.equal("role", UserRole.TEACHER)]
         );
-
         return result.documents as unknown as User[];
       } catch (error) {
         console.error("Ошибка при получении списка преподавателей:", error);
+        return [];
+      }
+    },
+  });
+};
+
+// Хук для получения списка активных преподавателей
+export const useActiveTeachers = () => {
+  return useQuery({
+    queryKey: [...authKeys.users(), "activeTeachers"],
+    queryFn: async () => {
+      try {
+        const result = await database.listDocuments(
+          DATABASE_ID,
+          collections.users,
+          [Query.equal("role", UserRole.TEACHER), Query.equal("isActive", true)]
+        );
+        return result.documents as unknown as User[];
+      } catch (error) {
+        console.error(
+          "Ошибка при получении списка активных преподавателей:",
+          error
+        );
+        return [];
+      }
+    },
+  });
+};
+
+// Хук для получения списка студентов
+export const useStudents = () => {
+  return useQuery({
+    queryKey: [...authKeys.users(), "students"],
+    queryFn: async () => {
+      try {
+        const result = await database.listDocuments(
+          DATABASE_ID,
+          collections.users,
+          [Query.equal("role", UserRole.STUDENT)]
+        );
+        return result.documents as unknown as User[];
+      } catch (error) {
+        console.error("Ошибка при получении списка студентов:", error);
         return [];
       }
     },
@@ -370,7 +427,6 @@ export const useAllUsers = () => {
           DATABASE_ID,
           collections.users
         );
-
         return result.documents as unknown as User[];
       } catch (error) {
         console.error("Ошибка при получении списка пользователей:", error);

@@ -58,7 +58,6 @@ export const userApi = {
 
       // Создаем запись в коллекции users
       const userData = {
-        userId: newUser.$id,
         name,
         email,
         role,
