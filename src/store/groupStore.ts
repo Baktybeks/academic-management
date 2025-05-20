@@ -1,6 +1,10 @@
 import { create } from "zustand";
 import { Group } from "@/types";
-import { groupApi } from "@/services/groupService";
+import {
+  groupApi,
+  GroupCreateDto,
+  GroupUpdateDto,
+} from "@/services/groupService";
 
 interface GroupState {
   groups: Group[];
@@ -56,13 +60,28 @@ export const useGroupStore = create<GroupState>((set, get) => ({
   createGroup: async (title, teacherId) => {
     try {
       set({ isLoading: true, error: null });
-      // Получаем текущего пользователя для createdBy
-      // Предположим, что информация о текущем пользователе доступна
-      const createdBy =
-        JSON.parse(localStorage.getItem("auth-storage") || "{}")?.state?.user
-          ?.$id || "";
 
-      const group = await groupApi.createGroup(title, teacherId, createdBy);
+      // Получаем ID пользователя
+      let createdBy = "";
+      try {
+        const authStorage = localStorage.getItem("auth-storage");
+        if (authStorage) {
+          const authData = JSON.parse(authStorage);
+          createdBy = authData?.state?.user?.$id || "";
+        }
+      } catch (e) {
+        console.error("Ошибка при получении данных пользователя:", e);
+      }
+
+      // Создаем объект с данными для API
+      const groupData: GroupCreateDto = {
+        title,
+        teacherId,
+        createdBy,
+      };
+
+      // Вызываем API с правильным типом данных
+      const group = await groupApi.createGroup(groupData);
       set({ groups: [...get().groups, group], isLoading: false });
     } catch (error) {
       const errorMessage =
@@ -76,7 +95,7 @@ export const useGroupStore = create<GroupState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       // Создаем объект с данными для обновления
-      const data = {
+      const data: GroupUpdateDto = {
         title,
         teacherId,
         studentIds,

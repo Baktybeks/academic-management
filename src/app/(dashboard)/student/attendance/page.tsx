@@ -1,4 +1,4 @@
-import StudentAttendance from "@/omponents/student/StudentAttendance";
+import StudentAttendance from "@/components/student/StudentAttendance";
 
 export default function StudentAttendancePage() {
   return (

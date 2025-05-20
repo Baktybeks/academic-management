@@ -11,7 +11,7 @@ export function StudentGrades() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [attendanceData, setAttendanceData] = useState<
-    Array<Attendance & { lesson?: Lesson }>
+    Array<Attendance & { lesson?: Lesson | null }>
   >([]);
   const [averageScore, setAverageScore] = useState<number>(0);
   const [attendanceRate, setAttendanceRate] = useState<number>(0);
@@ -19,7 +19,11 @@ export function StudentGrades() {
 
   useEffect(() => {
     const fetchGrades = async () => {
-      if (!user) return;
+      if (!user || !user.$id) {
+        setLoading(false);
+        setError("Не удалось получить информацию о пользователе");
+        return;
+      }
 
       try {
         setLoading(true);

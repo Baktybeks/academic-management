@@ -1,4 +1,4 @@
-import StudentAttendance from "@/omponents/student/StudentAttendance";
+import StudentAttendance from "@/components/student/StudentAttendance";
 import Link from "next/link";
 
 export default function StudentDashboardPage() {

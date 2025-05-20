@@ -56,19 +56,33 @@ export const useGroupStore = create<GroupState>((set, get) => ({
   createGroup: async (title, teacherId) => {
     try {
       set({ isLoading: true, error: null });
-      // Получаем текущего пользователя для createdBy
-      // Предположим, что информация о текущем пользователе доступна
-      const createdBy =
-        JSON.parse(localStorage.getItem("auth-storage") || "{}")?.state?.user
-          ?.$id || "";
 
-      const group = await groupApi.createGroup(title, teacherId, createdBy);
+      // Получаем ID пользователя
+      let createdBy = "";
+      try {
+        const authStorage = localStorage.getItem("auth-storage");
+        if (authStorage) {
+          const authData = JSON.parse(authStorage);
+          createdBy = authData?.state?.user?.$id || "";
+        }
+      } catch (e) {
+        console.error("Ошибка при получении данных пользователя:", e);
+      }
+
+      // Создаем объект с данными вместо передачи трех отдельных параметров
+      const groupData = {
+        title,
+        teacherId,
+        createdBy,
+      };
+
+      // Передаем один объект вместо трех параметров
+      const group = await groupApi.createGroup(groupData);
       set({ groups: [...get().groups, group], isLoading: false });
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Неизвестная ошибка";
       set({ error: errorMessage, isLoading: false });
-      throw error;
     }
   },
 

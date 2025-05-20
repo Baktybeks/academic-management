@@ -234,7 +234,7 @@ export function SurveyCompletion({ surveyId }: SurveyCompletionProps) {
                           value={answers[question.$id] || 0}
                           onChange={(e) =>
                             handleAnswerChange(
-                              question.$id,
+                              question.$id ?? "",
                               parseInt(e.target.value)
                             )
                           }

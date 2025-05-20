@@ -18,7 +18,7 @@ export function StudentAttendance() {
 
   useEffect(() => {
     const fetchAttendance = async () => {
-      if (!user) return;
+      if (!user || !user.$id) return;
 
       try {
         setLoading(true);
@@ -29,12 +29,21 @@ export function StudentAttendance() {
         // Для каждой записи посещаемости получаем информацию об уроке
         const attendanceWithLessons = await Promise.all(
           attendanceRecords.map(async (record) => {
-            const lesson = await lessonApi.getLessonById(record.lessonId);
+            let lesson: Lesson | undefined = undefined;
+            try {
+              const fetchedLesson = await lessonApi.getLessonById(
+                record.lessonId
+              );
+              // Проверка на null, если API может вернуть null
+              if (fetchedLesson) {
+                lesson = fetchedLesson;
+              }
+            } catch {
+              // оставляем lesson как undefined
+            }
             return { ...record, lesson };
           })
         );
-
-        // Сортируем по дате урока (от новых к старым)
         attendanceWithLessons.sort((a, b) => {
           if (!a.lesson?.date || !b.lesson?.date) return 0;
           return (

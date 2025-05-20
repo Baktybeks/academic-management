@@ -79,8 +79,15 @@ export function LessonManagement({ groupId }: LessonManagementProps) {
       return;
     }
 
-    if (!user || !group) {
-      setError("Ошибка доступа");
+    if (!user || !user.$id) {
+      setError(
+        "Ошибка доступа: не удалось определить идентификатор пользователя"
+      );
+      return;
+    }
+
+    if (!group) {
+      setError("Ошибка доступа: информация о группе не найдена");
       return;
     }
 
@@ -94,7 +101,7 @@ export function LessonManagement({ groupId }: LessonManagementProps) {
         description: lessonDescription,
         date: lessonDate,
         groupId: groupId,
-        teacherId: user.$id,
+        teacherId: user.$id, // Теперь TypeScript уверен, что это строка
       });
 
       // Обновляем список уроков

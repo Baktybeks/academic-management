@@ -1,4 +1,3 @@
-// services/groupService.ts
 import { ID, Query } from "appwrite";
 import { databases } from "./appwriteClient";
 import { appwriteConfig } from "@/constants/appwriteConfig";
@@ -6,10 +5,10 @@ import { Group } from "@/types";
 
 // Обновленный интерфейс DTO для создания группы
 export interface GroupCreateDto {
-  title: string; // Изменено с name на title
+  title: string;
   studentIds?: string[];
-  teacherId: string; // Добавлено для соответствия схеме
-  createdBy: string; // Добавлено для соответствия схеме
+  teacherId: string;
+  createdBy: string;
 }
 
 // Обновленный интерфейс DTO для обновления группы
@@ -47,19 +46,14 @@ export const groupApi = {
     }
   },
 
+  // Исправленная версия метода createGroup
   createGroup: async (groupData: GroupCreateDto): Promise<Group> => {
     try {
       const response = await databases.createDocument(
         appwriteConfig.databaseId,
         appwriteConfig.collections.groups,
         ID.unique(),
-        {
-          title: groupData.title, // Изменено с name на title
-          studentIds: groupData.studentIds || [],
-          teacherId: groupData.teacherId, // Добавлено
-          createdBy: groupData.createdBy, // Добавлено
-          createdAt: new Date().toISOString(),
-        }
+        groupData
       );
       return response as unknown as Group;
     } catch (error) {
@@ -70,7 +64,7 @@ export const groupApi = {
 
   updateGroup: async (
     id: string,
-    groupData: GroupUpdateDto // Обновлен тип
+    groupData: GroupUpdateDto
   ): Promise<Group> => {
     try {
       const response = await databases.updateDocument(
@@ -114,7 +108,6 @@ export const groupApi = {
     }
   },
 
-  // Добавлена новая функция для получения групп по ID преподавателя
   getGroupsByTeacherId: async (teacherId: string): Promise<Group[]> => {
     try {
       const response = await databases.listDocuments(
