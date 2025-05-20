@@ -1,4 +1,3 @@
-// middleware.ts - расположение остается тем же, на уровне src/
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { UserRole } from "@/types";
@@ -11,51 +10,56 @@ export function middleware(request: NextRequest) {
     try {
       const parsed = JSON.parse(authSession.value);
       user = parsed.state?.user;
-    } catch {}
+    } catch (error) {
+      // Добавляем логирование ошибки для отладки
+      console.error("Ошибка при разборе auth-session:", error);
+    }
   }
 
   const isAuthenticated = !!user;
   const isActive = user?.isActive === true;
   const path = request.nextUrl.pathname;
 
+  // Используем тот же подход к URL для всех редиректов
   if (path.startsWith("/login") || path.startsWith("/register")) {
     if (isAuthenticated && isActive) {
-      return redirectByRole(user.role);
+      return redirectByRole(user.role, request);
     }
     return NextResponse.next();
   }
 
   if (!isAuthenticated || !isActive) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    // Используем тот же метод создания URL, что и в redirectByRole
+    const loginUrl = new URL(request.nextUrl.origin);
+    loginUrl.pathname = "/login";
+    return NextResponse.redirect(loginUrl);
   }
 
   // Role-based access
   if (path.startsWith("/admin") && user.role !== UserRole.ADMIN) {
-    return redirectByRole(user.role);
+    return redirectByRole(user.role, request);
   }
 
   if (path.startsWith("/curator") && user.role !== UserRole.CURATOR) {
-    return redirectByRole(user.role);
+    return redirectByRole(user.role, request);
   }
 
   if (path.startsWith("/teacher") && user.role !== UserRole.TEACHER) {
-    return redirectByRole(user.role);
+    return redirectByRole(user.role, request);
   }
 
   if (path.startsWith("/student") && user.role !== UserRole.STUDENT) {
-    return redirectByRole(user.role);
+    return redirectByRole(user.role, request);
   }
 
   if (path === "/") {
-    return redirectByRole(user.role);
+    return redirectByRole(user.role, request);
   }
 
   return NextResponse.next();
 }
 
-function redirectByRole(role: UserRole) {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "";
-
+function redirectByRole(role: UserRole, request: NextRequest) {
   let path: string;
   switch (role) {
     case UserRole.ADMIN:
@@ -73,8 +77,10 @@ function redirectByRole(role: UserRole) {
     default:
       path = "/login";
   }
+  const url = new URL(request.nextUrl.origin);
+  url.pathname = path;
 
-  return NextResponse.redirect(new URL(path, baseUrl));
+  return NextResponse.redirect(url);
 }
 
 export const config = {
