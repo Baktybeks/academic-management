@@ -11,7 +11,7 @@ import Link from "next/link";
 export function SurveyList() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [surveys, setSurveys] = useState
+  const [surveys, setSurveys] = useState<
     Array<Survey & { completed?: boolean }>
   >([]);
   const [groups, setGroups] = useState<Group[]>([]);
@@ -33,6 +33,7 @@ export function SurveyList() {
         const activeSurveys = await surveyApi.getActiveSurveys();
 
         // Получаем группы, в которых состоит студент
+        // Здесь мы уверены, что user.$id существует из-за проверки выше
         const studentGroups = await groupApi.getGroupsByStudentId(user.$id);
         setGroups(studentGroups);
 
@@ -40,19 +41,23 @@ export function SurveyList() {
         const surveysWithStatus = await Promise.all(
           activeSurveys
             // Фильтруем опросники без ID
-            .filter(survey => Boolean(survey.$id))
+            .filter((survey) => Boolean(survey.$id))
             .map(async (survey) => {
               // Для каждой группы проверяем, проходил ли студент опросник для преподавателя этой группы
               const completedStatuses = await Promise.all(
                 studentGroups
                   // Фильтруем группы без teacherId
-                  .filter(group => Boolean(group.$id) && Boolean(group.teacherId))
+                  .filter(
+                    (group) => Boolean(group.$id) && Boolean(group.teacherId)
+                  )
                   .map(async (group) => {
+                    // Проверяем наличие всех необходимых ID перед вызовом
                     if (!survey.$id || !group.teacherId) return false;
-                    
+
+                    // Теперь мы уверены, что все ID существуют
                     return await surveyResponseApi.hasStudentCompletedSurvey(
                       survey.$id,
-                      user.$id,
+                      user.$id as string, // приведение типа
                       group.teacherId
                     );
                   })
@@ -105,9 +110,9 @@ export function SurveyList() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {availableSurveys.map((survey) => (
-          // Проверяем наличие survey.$id
-          survey.$id && (
+        {availableSurveys.map((survey) =>
+          // Проверяем наличие survey.$id и отображаем только если он существует
+          survey.$id ? (
             <div
               key={survey.$id}
               className="bg-white shadow-md rounded-lg overflow-hidden"
@@ -123,8 +128,8 @@ export function SurveyList() {
                 </Link>
               </div>
             </div>
-          )
-        ))}
+          ) : null
+        )}
       </div>
     </div>
   );

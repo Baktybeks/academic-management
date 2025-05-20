@@ -25,7 +25,7 @@ export const surveyResponseApi = {
     try {
       const result = await databases.listDocuments(
         appwriteConfig.databaseId,
-        appwriteConfig.collections.survey_responses,
+        appwriteConfig.collections.surveyResponses, // Исправлено с survey_responses на surveyResponses
         [
           Query.equal("surveyId", surveyId),
           Query.equal("studentId", studentId),
@@ -46,7 +46,7 @@ export const surveyResponseApi = {
     try {
       const response = await databases.createDocument(
         appwriteConfig.databaseId,
-        appwriteConfig.collections.survey_responses,
+        appwriteConfig.collections.surveyResponses, // Исправлено с survey_responses на surveyResponses
         ID.unique(),
         {
           ...data,
@@ -66,7 +66,7 @@ export const surveyResponseApi = {
     try {
       const answer = await databases.createDocument(
         appwriteConfig.databaseId,
-        appwriteConfig.collections.survey_answers,
+        appwriteConfig.collections.surveyAnswers, // Исправлено с survey_answers на surveyAnswers
         ID.unique(),
         {
           ...data,
@@ -87,7 +87,7 @@ export const surveyResponseApi = {
     try {
       const result = await databases.listDocuments(
         appwriteConfig.databaseId,
-        appwriteConfig.collections.survey_responses,
+        appwriteConfig.collections.surveyResponses, // Исправлено с survey_responses на surveyResponses
         [Query.equal("studentId", studentId)]
       );
       return result.documents as unknown as SurveyResponse[];
@@ -104,7 +104,7 @@ export const surveyResponseApi = {
     try {
       const result = await databases.listDocuments(
         appwriteConfig.databaseId,
-        appwriteConfig.collections.survey_answers,
+        appwriteConfig.collections.surveyAnswers, // Исправлено с survey_answers на surveyAnswers
         [Query.equal("responseId", responseId)]
       );
       return result.documents as unknown as SurveyAnswer[];
