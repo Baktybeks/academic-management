@@ -38,10 +38,7 @@ export function Navbar() {
     }
 
     if (isTeacher) {
-      return [
-        { href: "/teacher", label: "Мои группы" },
-        { href: "/teacher/profile", label: "Профиль" },
-      ];
+      return [{ href: "/teacher", label: "Мои группы" }];
     }
 
     if (isCurator) {

@@ -22,19 +22,6 @@ export default function CuratorPage() {
         </div>
 
         <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold mb-4">Создание пользователей</h2>
-          <p className="text-gray-600 mb-4">
-            Регистрация новых преподавателей и студентов в системе.
-          </p>
-          <a
-            href="/curator/create-users"
-            className="inline-block bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
-          >
-            Перейти
-          </a>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow-md">
           <h2 className="text-xl font-semibold mb-4">Управление группами</h2>
           <p className="text-gray-600 mb-4">
             Создание и редактирование учебных групп и распределение студентов.
